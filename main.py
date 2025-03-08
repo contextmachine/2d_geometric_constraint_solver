@@ -1,8 +1,8 @@
 import tkinter as tk
-from constraints.constraints import Constraints
-from geometry import Geometry
-from gui.gui import GUI
-from solver.solver import Solver
+from src.constraints.constraints import Constraints
+from src.geometry import Geometry
+from src.gui.gui import GUI
+from src.solver.solver import Solver
 
 def geometry_changed_by_GUI(active_point):
     global solver

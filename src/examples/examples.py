@@ -1,8 +1,8 @@
-from constraints.constraint import Constraint
-from constraints.constraints import CONSTRAINT_TYPE
-from geometric_primitives.point import Point
-from geometric_primitives.segment import Segment
-from geometric_primitives.arc import Arc
+from ..constraints.constraint import Constraint
+from ..constraints.constraints import CONSTRAINT_TYPE
+from ..geometric_primitives.point import Point
+from ..geometric_primitives.segment import Segment
+from ..geometric_primitives.arc import Arc
 
 SCALE = 1
 

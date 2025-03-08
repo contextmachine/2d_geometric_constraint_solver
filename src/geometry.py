@@ -1,6 +1,6 @@
-from geometric_primitives.arc import Arc
-from geometric_primitives.point import Point
-from geometric_primitives.segment import Segment
+from .geometric_primitives.arc import Arc
+from .geometric_primitives.point import Point
+from .geometric_primitives.segment import Segment
 
 class Geometry:
     def __init__(self):

@@ -1,4 +1,4 @@
-from geometric_primitives.point import Point
+from ..geometric_primitives.point import Point
 
 class ConstraintIcon():
     def __init__(self, canvas, icon, icon_size):
