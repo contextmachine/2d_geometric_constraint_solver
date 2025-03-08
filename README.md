@@ -20,7 +20,7 @@ Here you can find more information on how it works: https://vmnnk.com/en/2023-10
 
 ```
 pip install -r requirements.txt
-python src/main.py
+python main.py
 ```
 
 ## How to use
