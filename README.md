@@ -1,5 +1,13 @@
 # 2D Geometric Constraint Solver
 
+This project is a fork of [AntonEvmenenko/2d_geometric_constraint_solver](https://github.com/AntonEvmenenko/2d_geometric_constraint_solver)
+
+## Goals
+- Modify 2d_geometric_constraint_solver into a complete python package that could be used both GUI and headless in other python projects.
+- Expand the list of available constraints. At the moment we have added a limit on segment length and distance between points.
+- Expand the set of supported geometric primitives.
+
+
 ![](./screenshots/preview.gif)
 
 This project is an attempt to utilize [mathematical optimization algorithms](https://en.wikipedia.org/wiki/Mathematical_optimization), specifically [SLSQP](https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html), to deal with [geometric constraint solving](https://en.wikipedia.org/wiki/Geometric_constraint_solving) problem.
