@@ -2,10 +2,10 @@ from enum import Enum, auto
 import itertools
 from scipy.optimize import minimize
 from copy import copy
-from constraints.constraints import CONSTRAINT_FUNCTION, CONSTRAINT_TYPE, Constraints
-from geometry import Geometry
-from geometric_primitives.point import Point, distance_p2p
-from geometric_primitives.segment import Segment
+from ..constraints.constraints import CONSTRAINT_FUNCTION, CONSTRAINT_TYPE, Constraints
+from ..geometry import Geometry
+from ..geometric_primitives.point import Point, distance_p2p
+from ..geometric_primitives.segment import Segment
 
 class SOLVER_TYPE(Enum):
     SLSQP   = auto()
@@ -186,8 +186,22 @@ class Solver:
 
             if function is None:
                 continue
-
-            f += function(*constraint. entities)
+                
+            # Special handling for LENGTH constraint which has a numeric value
+            if constraint.type == CONSTRAINT_TYPE.LENGTH:
+                if len(constraint.entities) == 2 and isinstance(constraint.entities[0], Segment):
+                    # Case 1: Segment with length value
+                    segment = constraint.entities[0]
+                    length_value = constraint.entities[1]  # The second entity is the length value
+                    f += function(segment, length_value)
+                elif len(constraint.entities) == 3 and isinstance(constraint.entities[0], Point) and isinstance(constraint.entities[1], Point):
+                    # Case 2: Two points with distance value
+                    point1 = constraint.entities[0]
+                    point2 = constraint.entities[1]
+                    distance_value = constraint.entities[2]  # The third entity is the distance value
+                    f += function(point1, point2, distance_value)
+            else:
+                f += function(*constraint.entities)
 
         # print (f'x: {x}')
         # print (f'c [{len(f)}]: {f}')
@@ -202,6 +216,9 @@ class Solver:
                 return self.links[self.get_base_id(id_x)] == SPECIAL_LINK.FIXED and self.links[self.get_base_id(id_y)] == SPECIAL_LINK.FIXED
             elif isinstance(entity, Segment):
                 return is_fixed_entity(entity.p1) and is_fixed_entity(entity.p2)
+            elif isinstance(entity, float) or isinstance(entity, int):
+                # Numeric values (like length values) are always fixed
+                return True
             else:
                 return False
 

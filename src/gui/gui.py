@@ -1,15 +1,16 @@
 import tkinter as tk
-from constraints.constraint import Constraint
-from constraints.constraints import *
-from examples.examples import examples
-from geometry import Geometry
-from geometric_primitives.point import Point, distance_p2p
-from geometric_primitives.segment import Segment, distance_p2s
+from tkinter import messagebox
+from ..constraints.constraint import Constraint
+from ..constraints.constraints import *
+from ..examples.examples import examples
+from ..geometry import Geometry
+from ..geometric_primitives.point import Point, distance_p2p
+from ..geometric_primitives.segment import Segment, distance_p2s
 from math import atan2, degrees, pi
-from geometric_primitives.arc import Arc, distance_p2a
-from gui.constraint_icon import ConstraintIcon
+from ..geometric_primitives.arc import Arc, distance_p2a
+from .constraint_icon import ConstraintIcon
 
-WINDOW_SIZE = (840, 440)
+WINDOW_SIZE = (840*4, 440*4)
 
 USER_SELECTING_RADUIS   = 10
 
@@ -137,7 +138,7 @@ class GUI(tk.Frame):
             CONSTRAINT_TYPE.VERTICALITY:            "verticality",
             CONSTRAINT_TYPE.TANGENCY:               "tangency",
             CONSTRAINT_TYPE.CONCENTRICITY:          "concentricity",
-            # CONSTRAINT_TYPE.LENGTH:                 "length",
+            CONSTRAINT_TYPE.LENGTH:                 "length",
         }
 
         for icon_size in icon_sizes:
@@ -170,6 +171,7 @@ class GUI(tk.Frame):
             CONSTRAINT_TYPE.HORIZONTALITY:             create_menu_right_constraint_button(6, CONSTRAINT_TYPE.HORIZONTALITY),
             CONSTRAINT_TYPE.TANGENCY:                  create_menu_right_constraint_button(7, CONSTRAINT_TYPE.TANGENCY),
             CONSTRAINT_TYPE.CONCENTRICITY:             create_menu_right_constraint_button(8, CONSTRAINT_TYPE.CONCENTRICITY),
+            CONSTRAINT_TYPE.LENGTH:                    create_menu_right_constraint_button(9, CONSTRAINT_TYPE.LENGTH),
         }
 
     # mouse and keyboard handlers
@@ -205,8 +207,22 @@ class GUI(tk.Frame):
                 return
             return
 
-        for (_, constraint), drawn_constraint_icon in self.entity_and_constraint_to_drawn_constraint_icon.items():
+        # Check if the mouse click is on a constraint icon
+        current_time = self.root.tk.call('clock', 'milliseconds')
+        for (entity, constraint), drawn_constraint_icon in self.entity_and_constraint_to_drawn_constraint_icon.items():
             if cursor in drawn_constraint_icon:
+                # Handle double-click for LENGTH constraint
+                if constraint.type == CONSTRAINT_TYPE.LENGTH and hasattr(self, 'last_constraint_click_time') and \
+                   constraint == self.last_constraint_click and \
+                   int(current_time) - int(self.last_constraint_click_time) < 500:  # 500ms for double-click
+                    self.edit_length_constraint(constraint)
+                    return
+                
+                # Store info for potential double-click
+                self.last_constraint_click = constraint
+                self.last_constraint_click_time = current_time
+                
+                # Normal selection behavior
                 self.selected_entities.clear()
                 self.selected_entities.add(constraint)
                 self.redraw_geometry()
@@ -316,10 +332,132 @@ class GUI(tk.Frame):
         self.adding_arc = True
 
     def on_add_constraint_button_clicked(self, constraint_type):
-        self.add_constraint(Constraint(list(self.selected_entities), constraint_type))
-
-        self.selected_entities.clear()
-        self.constraints_changed_callback()
+        if constraint_type == CONSTRAINT_TYPE.LENGTH:
+            selected_entities = list(self.selected_entities)
+            
+            # Check if we have a segment or two points
+            if len(selected_entities) == 1 and isinstance(selected_entities[0], Segment):
+                # Case 1: Segment with length
+                segment = selected_entities[0]
+                current_length = segment.length()
+                
+                # Create a popup dialog to get the desired length
+                length_dialog = tk.Toplevel(self)
+                length_dialog.title("Enter Segment Length")
+                length_dialog.geometry("300x100")
+                length_dialog.resizable(False, False)
+                length_dialog.transient(self)
+                length_dialog.grab_set()
+                
+                # Center the dialog
+                length_dialog.update_idletasks()
+                width = length_dialog.winfo_width()
+                height = length_dialog.winfo_height()
+                x = (self.winfo_width() // 2) - (width // 2)
+                y = (self.winfo_height() // 2) - (height // 2)
+                length_dialog.geometry(f"+{x}+{y}")
+                
+                tk.Label(length_dialog, text=f"Current length: {current_length:.2f}").pack(pady=(10, 5))
+                
+                length_var = tk.StringVar(value=f"{current_length:.2f}")
+                length_entry = tk.Entry(length_dialog, textvariable=length_var, width=10)
+                length_entry.pack(pady=5)
+                length_entry.select_range(0, tk.END)
+                length_entry.focus()
+                
+                def apply_length_constraint():
+                    try:
+                        length_value = float(length_var.get())
+                        if length_value <= 0:
+                            raise ValueError("Length must be positive")
+                        
+                        # Add the length as an additional entity in the constraint
+                        self.add_constraint(Constraint([segment, length_value], constraint_type))
+                        self.selected_entities.clear()
+                        self.constraints_changed_callback()
+                        length_dialog.destroy()
+                    except ValueError as e:
+                        tk.messagebox.showerror("Invalid Value", f"Please enter a valid positive number: {str(e)}")
+                
+                def cancel():
+                    length_dialog.destroy()
+                
+                button_frame = tk.Frame(length_dialog)
+                button_frame.pack(pady=10, fill=tk.X)
+                
+                tk.Button(button_frame, text="Apply", command=apply_length_constraint).pack(side=tk.RIGHT, padx=5)
+                tk.Button(button_frame, text="Cancel", command=cancel).pack(side=tk.RIGHT, padx=5)
+                
+                # Handle Enter key to apply
+                length_dialog.bind("<Return>", lambda event: apply_length_constraint())
+                length_dialog.bind("<Escape>", lambda event: cancel())
+                
+                # Wait for the dialog to be closed
+                self.wait_window(length_dialog)
+                
+            elif len(selected_entities) == 2 and all(isinstance(entity, Point) for entity in selected_entities):
+                # Case 2: Two points with distance
+                point1, point2 = selected_entities
+                current_distance = distance_p2p(point1, point2)
+                
+                # Create a popup dialog to get the desired distance
+                distance_dialog = tk.Toplevel(self)
+                distance_dialog.title("Enter Point Distance")
+                distance_dialog.geometry("300x100")
+                distance_dialog.resizable(False, False)
+                distance_dialog.transient(self)
+                distance_dialog.grab_set()
+                
+                # Center the dialog
+                distance_dialog.update_idletasks()
+                width = distance_dialog.winfo_width()
+                height = distance_dialog.winfo_height()
+                x = (self.winfo_width() // 2) - (width // 2)
+                y = (self.winfo_height() // 2) - (height // 2)
+                distance_dialog.geometry(f"+{x}+{y}")
+                
+                tk.Label(distance_dialog, text=f"Current distance: {current_distance:.2f}").pack(pady=(10, 5))
+                
+                distance_var = tk.StringVar(value=f"{current_distance:.2f}")
+                distance_entry = tk.Entry(distance_dialog, textvariable=distance_var, width=10)
+                distance_entry.pack(pady=5)
+                distance_entry.select_range(0, tk.END)
+                distance_entry.focus()
+                
+                def apply_distance_constraint():
+                    try:
+                        distance_value = float(distance_var.get())
+                        if distance_value <= 0:
+                            raise ValueError("Distance must be positive")
+                        
+                        # Add the distance as an additional entity in the constraint
+                        self.add_constraint(Constraint([point1, point2, distance_value], constraint_type))
+                        self.selected_entities.clear()
+                        self.constraints_changed_callback()
+                        distance_dialog.destroy()
+                    except ValueError as e:
+                        tk.messagebox.showerror("Invalid Value", f"Please enter a valid positive number: {str(e)}")
+                
+                def cancel():
+                    distance_dialog.destroy()
+                
+                button_frame = tk.Frame(distance_dialog)
+                button_frame.pack(pady=10, fill=tk.X)
+                
+                tk.Button(button_frame, text="Apply", command=apply_distance_constraint).pack(side=tk.RIGHT, padx=5)
+                tk.Button(button_frame, text="Cancel", command=cancel).pack(side=tk.RIGHT, padx=5)
+                
+                # Handle Enter key to apply
+                distance_dialog.bind("<Return>", lambda event: apply_distance_constraint())
+                distance_dialog.bind("<Escape>", lambda event: cancel())
+                
+                # Wait for the dialog to be closed
+                self.wait_window(distance_dialog)
+        else:
+            # Handle other constraints normally
+            self.add_constraint(Constraint(list(self.selected_entities), constraint_type))
+            self.selected_entities.clear()
+            self.constraints_changed_callback()
 
     # elements drawing (geometry)
 
@@ -614,3 +752,93 @@ class GUI(tk.Frame):
         print (f"\tSolved by substitution: {self.constraints.solved_by_substitution_constraints}")
         print (f"\tSolved by solver: {len(self.constraints) - self.constraints.solved_by_substitution_constraints - self.constraints.fixed_constraints}")
         print ("==============================")
+        
+    def edit_length_constraint(self, constraint):
+        """Edit a LENGTH constraint by showing a dialog to update the length value"""
+        if constraint.type != CONSTRAINT_TYPE.LENGTH:
+            return
+        
+        # Determine if this is a segment length or point distance constraint
+        if len(constraint.entities) == 2 and isinstance(constraint.entities[0], Segment):
+            # Segment length constraint
+            segment = constraint.entities[0]
+            current_value = constraint.entities[1]  # The numeric value
+            current_actual = segment.length()
+            value_label = "length"
+            title = "Edit Segment Length Constraint"
+            
+            # Index where the value is stored
+            value_index = 1
+            
+        elif len(constraint.entities) == 3 and isinstance(constraint.entities[0], Point) and isinstance(constraint.entities[1], Point):
+            # Point distance constraint
+            point1 = constraint.entities[0]
+            point2 = constraint.entities[1]
+            current_value = constraint.entities[2]  # The numeric value
+            current_actual = distance_p2p(point1, point2)
+            value_label = "distance"
+            title = "Edit Point Distance Constraint"
+            
+            # Index where the value is stored
+            value_index = 2
+            
+        else:
+            return  # Unknown constraint format
+        
+        # Create a popup dialog to edit the value
+        dialog = tk.Toplevel(self)
+        dialog.title(title)
+        dialog.geometry("350x150")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.update_idletasks()
+        width = dialog.winfo_width()
+        height = dialog.winfo_height()
+        x = (self.winfo_width() // 2) - (width // 2)
+        y = (self.winfo_height() // 2) - (height // 2)
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Dialog content
+        tk.Label(dialog, text=f"Current constraint {value_label}: {current_value:.2f}").pack(pady=(10, 5))
+        tk.Label(dialog, text=f"Current actual {value_label}: {current_actual:.2f}").pack(pady=(0, 10))
+        
+        value_var = tk.StringVar(value=f"{current_value:.2f}")
+        value_entry = tk.Entry(dialog, textvariable=value_var, width=10)
+        value_entry.pack(pady=5)
+        value_entry.select_range(0, tk.END)
+        value_entry.focus()
+        
+        def apply_value_change():
+            try:
+                new_value = float(value_var.get())
+                if new_value <= 0:
+                    raise ValueError(f"{value_label.capitalize()} must be positive")
+                
+                # Update the constraint's value
+                constraint.entities[value_index] = new_value
+                
+                # Force solver to re-evaluate
+                self.geometry_changed_callback(None)
+                self.constraints_changed_callback()
+                dialog.destroy()
+            except ValueError as e:
+                tk.messagebox.showerror("Invalid Value", f"Please enter a valid positive number: {str(e)}")
+        
+        def cancel():
+            dialog.destroy()
+        
+        button_frame = tk.Frame(dialog)
+        button_frame.pack(pady=10, fill=tk.X)
+        
+        tk.Button(button_frame, text="Apply", command=apply_value_change).pack(side=tk.RIGHT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=cancel).pack(side=tk.RIGHT, padx=5)
+        
+        # Handle Enter key to apply
+        dialog.bind("<Return>", lambda event: apply_value_change())
+        dialog.bind("<Escape>", lambda event: cancel())
+        
+        # Wait for the dialog to be closed
+        self.wait_window(dialog)

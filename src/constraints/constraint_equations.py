@@ -1,11 +1,11 @@
 # helpers
 
 from collections import Counter
-from geometric_primitives.arc import Arc
-from geometric_primitives.line import Line, distance_p2l
-from geometric_primitives.point import distance_p2p
-from geometric_primitives.segment import Segment
-from geometric_primitives.vector import Vector, cross, dot
+from ..geometric_primitives.arc import Arc
+from ..geometric_primitives.line import Line, distance_p2l
+from ..geometric_primitives.point import Point, distance_p2p
+from ..geometric_primitives.segment import Segment
+from ..geometric_primitives.vector import Vector, cross, dot
 
 def pairs(entities):
     return zip(entities[:-1], entities[1:])
@@ -27,8 +27,15 @@ def equal_length_or_radius(entity1, entity2):
     assert segments or arcs
     return [entity1.length() - entity2.length()] if segments else [entity1.radius() - entity2.radius()]
 
-def length(segment: Segment, length: float):
-    return [(Vector(segment.p2.x - segment.p1.x, segment.p2.y - segment.p1.y).length() - length)]
+def length(entity1, length_or_entity2, length_value=None):
+    if isinstance(entity1, Segment) and isinstance(length_or_entity2, (int, float)):
+        # Case 1: Segment with length value
+        return [(Vector(entity1.p2.x - entity1.p1.x, entity1.p2.y - entity1.p1.y).length() - length_or_entity2)]
+    elif isinstance(entity1, Point) and isinstance(length_or_entity2, Point) and isinstance(length_value, (int, float)):
+        # Case 2: Two points with distance value
+        return [(Vector(length_or_entity2.x - entity1.x, length_or_entity2.y - entity1.y).length() - length_value)]
+    else:
+        assert False, "Invalid arguments for length constraint"
 
 def tangency(entity1, entity2):
     temp = Counter((entity1.__class__, entity2.__class__))
